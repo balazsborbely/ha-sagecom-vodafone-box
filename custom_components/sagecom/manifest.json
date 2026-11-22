@@ -1,6 +1,7 @@
 {
   "domain": "sagecom",
   "name": "Sagemcom Vodafone",
+  "categories": ["computers_network.routers_network"],
   "codeowners": ["@banditoth"],
   "config_flow": true,
   "documentation": "https://github.com/banditoth/ha-sagecom-vodafone-box",
