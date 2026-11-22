@@ -1,0 +1,11 @@
+{
+  "domain": "sagecom",
+  "name": "Sagemcom Vodafone",
+  "codeowners": ["@banditoth"],
+  "config_flow": true,
+  "documentation": "https://github.com/banditoth/ha-sagecom-vodafone-box",
+  "issue_tracker": "https://github.com/banditoth/ha-sagecom-vodafone-box/issues",
+  "iot_class": "local_polling",
+  "requirements": ["passlib==1.7.4"],
+  "version": "1.0.0"
+}

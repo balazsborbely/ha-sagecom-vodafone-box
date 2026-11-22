@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sagemcom Vodafone router",
+        "description": "Az integráció kizárólag olvasási API-végpontokat használ.",
+        "data": {
+          "host": "Router IP-címe",
+          "username": "Felhasználónév",
+          "password": "Jelszó"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nem sikerült csatlakozni a routerhez.",
+      "invalid_auth": "Érvénytelen felhasználónév vagy jelszó."
+    },
+    "abort": {
+      "already_configured": "Ez a router már konfigurálva van."
+    }
+  }
+}

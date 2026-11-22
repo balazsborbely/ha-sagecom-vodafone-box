@@ -1,0 +1,10 @@
+DOMAIN = "sagecom"
+
+CONF_HOST = "host"
+CONF_USERNAME = "username"
+CONF_PASSWORD = "password"
+
+DEFAULT_HOST = "192.168.8.1"
+DEFAULT_USERNAME = "admin"
+
+UPDATE_INTERVAL_SECONDS = 30

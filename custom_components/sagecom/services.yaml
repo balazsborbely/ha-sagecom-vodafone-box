@@ -1,0 +1,187 @@
+reboot:
+  name: Reboot router
+  description: Reboots the Sagemcom router.
+
+reset_wifi:
+  name: Reset Wi-Fi
+  description: Restores the Wi-Fi radio to the router's default reset state.
+
+set_dhcp_reservation:
+  name: Set DHCP reservation
+  fields:
+    hostname:
+      required: true
+      example: "homeassistant"
+      selector:
+        text:
+    mac_address:
+      required: true
+      example: "5a:bb:ae:d1:f1:fc"
+      selector:
+        text:
+    ip_address:
+      required: true
+      example: "192.168.8.3"
+      selector:
+        text:
+    reservation_id:
+      required: false
+      example: 17
+      selector:
+        number:
+          mode: box
+
+delete_dhcp_reservation:
+  name: Delete DHCP reservation
+  fields:
+    reservation_id:
+      required: true
+      selector:
+        number:
+          mode: box
+
+set_port_forward:
+  name: Set port forwarding rule
+  fields:
+    rule_id:
+      required: false
+      selector:
+        number:
+          mode: box
+    description:
+      required: true
+      selector:
+        text:
+    protocol:
+      required: true
+      example: "TCP"
+      selector:
+        text:
+    external_ip:
+      required: false
+      example: "0.0.0.0"
+      selector:
+        text:
+    external_port:
+      required: true
+      example: "8123"
+      selector:
+        text:
+    internal_ip:
+      required: true
+      example: "192.168.8.3"
+      selector:
+        text:
+    internal_port:
+      required: true
+      example: "8123"
+      selector:
+        text:
+    enabled:
+      required: false
+      default: true
+      selector:
+        boolean:
+
+delete_port_forward:
+  name: Delete port forwarding rule
+  fields:
+    rule_id:
+      required: true
+      selector:
+        number:
+          mode: box
+
+set_firewall_rule:
+  name: Set firewall rule
+  fields:
+    rule_id:
+      required: false
+      selector:
+        number:
+          mode: box
+    description:
+      required: true
+      selector:
+        text:
+    action:
+      required: true
+      example: "ACCEPT"
+      selector:
+        text:
+    destination_ip:
+      required: false
+      example: "0.0.0.0"
+      selector:
+        text:
+    destination_ports:
+      required: false
+      example: "-1"
+      selector:
+        text:
+    source_ip:
+      required: false
+      example: "0.0.0.0"
+      selector:
+        text:
+    source_ports:
+      required: false
+      example: "-1"
+      selector:
+        text:
+    ip_protocol:
+      required: false
+      example: "TCP"
+      selector:
+        text:
+    enabled:
+      required: false
+      default: true
+      selector:
+        boolean:
+
+delete_firewall_rule:
+  name: Delete firewall rule
+  fields:
+    rule_id:
+      required: true
+      selector:
+        number:
+          mode: box
+
+set_parental_control:
+  name: Register parental control
+  fields:
+    mac_address:
+      required: true
+      selector:
+        text:
+
+delete_parental_control:
+  name: Remove parental control
+  fields:
+    mac_address:
+      required: true
+      selector:
+        text:
+    rule_id:
+      required: true
+      selector:
+        number:
+          mode: box
+
+set_url_filter:
+  name: Set web filter
+  fields:
+    enabled:
+      required: true
+      selector:
+        boolean:
+
+set_upnp:
+  name: Set UPnP
+  fields:
+    enabled:
+      required: true
+      selector:
+        boolean:
