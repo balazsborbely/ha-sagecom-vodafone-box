@@ -2,6 +2,17 @@
 
 This custom integration connects to Sagemcom/XMO routers on the local network. It provides status and statistics, plus explicitly triggered management actions.
 
+## Supported device
+
+The integration is currently verified with this device:
+
+- Model: **Sagemcom FAST3896**
+- Provider: **Vodafone Hungary**
+- Firmware: **FAST3896-15_VDFH-RDK_83.1.23**
+- Management interface: local Sagemcom/XMO REST API
+
+Compatibility with other Sagemcom or Vodafone router models may vary because the available API fields and endpoints can differ.
+
 ## Entities
 
 - WAN connectivity
