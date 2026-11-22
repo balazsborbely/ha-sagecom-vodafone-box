@@ -35,3 +35,6 @@ Management actions are only sent when a switch, button, automation, script, or s
 2. Restart Home Assistant.
 3. Open **Settings > Devices & services > Add integration**.
 4. Choose **Sagemcom Vodafone** and enter the router IP, username, and password.
+
+## Screenshots
+<img width="1475" height="1250" alt="image" src="https://github.com/user-attachments/assets/fc32d125-127e-4262-9dd6-28d1c62e0c8b" />
