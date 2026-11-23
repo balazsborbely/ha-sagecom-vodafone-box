@@ -30,11 +30,12 @@ class SagecomEntity(CoordinatorEntity):
             device.get("running", {}).get("version")
             or device.get("main", {}).get("version")
         )
+        scheme = "https" if getattr(coordinator.api, "ssl", False) else "http"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, serial or coordinator.api.host)},
-            name=model or "Sagemcom Vodafone",
+            name=model or "Sagemcom F@st CPE",
             manufacturer="Sagemcom",
             model=model,
             sw_version=firmware,
-            configuration_url=f"http://{coordinator.api.host}",
+            configuration_url=f"{scheme}://{coordinator.api.host}",
         )

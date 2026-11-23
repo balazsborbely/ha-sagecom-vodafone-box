@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Sagemcom Vodafone router",
+        "title": "Sagemcom F@st CPE",
         "description": "The integration uses read-only API endpoints.",
         "data": {
           "host": "Router IP address",

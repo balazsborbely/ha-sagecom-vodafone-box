@@ -39,6 +39,11 @@ SWITCHES = (
         icon="mdi:led-off",
     ),
     SwitchEntityDescription(
+        key="switch_led",
+        name="Router switch LED dark mode",
+        icon="mdi:led-off",
+    ),
+    SwitchEntityDescription(
         key="firewall",
         name="Firewall",
         icon="mdi:firewall",
@@ -52,6 +57,11 @@ SWITCHES = (
         key="upnp",
         name="UPnP",
         icon="mdi:lan",
+    ),
+    SwitchEntityDescription(
+        key="band_steering",
+        name="Band steering",
+        icon="mdi:wifi-sync",
     ),
 )
 
@@ -99,6 +109,17 @@ class SagecomSwitch(SagecomEntity, SwitchEntity):
             except (KeyError, IndexError, TypeError):
                 return False
 
+        if key == "switch_led":
+            led = data.get("docsis_led")
+            try:
+                darkmode = led[0]["led"]["switch_darkmode"]
+                return str(darkmode).lower() == "true"
+            except (KeyError, IndexError, TypeError):
+                return False
+
+        if key == "band_steering":
+            return bool(data.get("band_steering"))
+
         if key == "firewall":
             firewall = data.get("firewall_status")
             try:
@@ -143,6 +164,10 @@ class SagecomSwitch(SagecomEntity, SwitchEntity):
             await api.async_set_wifi(band, enabled)
         elif key == "led":
             await api.async_set_led(enabled)
+        elif key == "switch_led":
+            await api.async_set_switch_led(enabled)
+        elif key == "band_steering":
+            await api.async_set_band_steering(enabled)
         elif key == "firewall":
             await api.async_set_firewall(enabled)
         elif key == "easy_mesh":
@@ -152,6 +177,36 @@ class SagecomSwitch(SagecomEntity, SwitchEntity):
         await self.coordinator.async_request_refresh()
 
 
+def _is_switch_supported(data: dict, key: str) -> bool:
+    if key in ("wifi24", "wifi5"):
+        band = "24" if key == "wifi24" else "5"
+        try:
+            return band in data["wireless"][0]["wireless"]["radio"]
+        except (KeyError, IndexError, TypeError):
+            return False
+    if key in ("guest24", "guest5"):
+        return data.get(f"{key}_stats") is not None
+    if key == "led":
+        try:
+            return "darkmode" in data["docsis_led"][0]["led"]
+        except (KeyError, IndexError, TypeError):
+            return False
+    if key == "switch_led":
+        try:
+            return "switch_darkmode" in data["docsis_led"][0]["led"]
+        except (KeyError, IndexError, TypeError):
+            return False
+    if key == "firewall":
+        return data.get("firewall_status") is not None
+    if key == "easy_mesh":
+        return data.get("easy_mesh") is not None
+    if key == "upnp":
+        return data.get("upnp") is not None
+    if key == "band_steering":
+        return data.get("band_steering") is not None
+    return False
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -159,9 +214,11 @@ async def async_setup_entry(
 ) -> None:
     """Set up Sagemcom switches."""
     coordinator: SagecomCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
+    data = coordinator.data or {}
     async_add_entities(
         [
             SagecomSwitch(coordinator, description)
             for description in SWITCHES
+            if _is_switch_supported(data, description.key)
         ]
     )

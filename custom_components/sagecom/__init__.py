@@ -7,9 +7,21 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import SagecomApi
-from .const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, DOMAIN
+from .api import SagecomApi, SagecomXmoApi
+from .const import (
+    API_TYPE_REST_V1,
+    API_TYPE_XMO,
+    CONF_API_TYPE,
+    CONF_ENCRYPTION_METHOD,
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_SSL,
+    CONF_USERNAME,
+    CONF_VERIFY_SSL,
+    DOMAIN,
+)
 from .coordinator import SagecomCoordinator
 
 PLATFORMS = [
@@ -23,11 +35,30 @@ PLATFORMS = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Sagemcom Vodafone from a config entry."""
-    api = SagecomApi(
-        host=entry.data[CONF_HOST],
-        username=entry.data[CONF_USERNAME],
-        password=entry.data[CONF_PASSWORD],
-    )
+    api_type = entry.data.get(CONF_API_TYPE, API_TYPE_REST_V1)
+    if api_type == API_TYPE_XMO:
+        encryption_method = entry.data.get(CONF_ENCRYPTION_METHOD, "SHA512")
+        verify_ssl = bool(entry.data.get(CONF_VERIFY_SSL, False))
+        session = (
+            None
+            if str(encryption_method) == "NONE"
+            else async_get_clientsession(hass, verify_ssl=verify_ssl)
+        )
+        api: SagecomApi | SagecomXmoApi = SagecomXmoApi(
+            host=entry.data[CONF_HOST],
+            username=entry.data[CONF_USERNAME],
+            password=entry.data[CONF_PASSWORD],
+            encryption_method=encryption_method,
+            ssl=bool(entry.data.get(CONF_SSL, False)),
+            verify_ssl=verify_ssl,
+            session=session,
+        )
+    else:
+        api = SagecomApi(
+            host=entry.data[CONF_HOST],
+            username=entry.data[CONF_USERNAME],
+            password=entry.data[CONF_PASSWORD],
+        )
     await api.async_login()
 
     coordinator = SagecomCoordinator(hass, api)

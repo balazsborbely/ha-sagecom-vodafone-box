@@ -1,12 +1,12 @@
 {
   "domain": "sagecom",
-  "name": "Sagemcom Vodafone",
+  "name": "Sagemcom F@st CPE",
   "categories": ["computers_network.routers_network"],
   "codeowners": ["@banditoth"],
   "config_flow": true,
   "documentation": "https://github.com/banditoth/ha-sagecom-vodafone-box",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/banditoth/ha-sagecom-vodafone-box/issues",
-  "requirements": ["passlib==1.7.4"],
+  "requirements": ["passlib==1.7.4", "sagemcom_api==1.6.0"],
   "version": "1.0.1"
 }

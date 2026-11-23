@@ -60,6 +60,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up Sagemcom action buttons."""
     coordinator: SagecomCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    async_add_entities(
-        [SagecomButton(coordinator, description) for description in BUTTONS]
-    )
+    capabilities = (coordinator.data or {}).get("capabilities") or {}
+    buttons = [
+        SagecomButton(coordinator, description)
+        for description in BUTTONS
+        if description.key != "reset_wifi" or capabilities.get("reset_wifi", True)
+    ]
+    async_add_entities(buttons)
