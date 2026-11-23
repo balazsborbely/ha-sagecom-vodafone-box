@@ -583,6 +583,7 @@ class SagecomXmoApi:
         )
         self._owns_client_session = session is None and self._owned_session is None
         self._logged_in = False
+        self._lock = asyncio.Lock()
 
     async def async_close(self) -> None:
         """Close any HTTP session owned by this client."""
@@ -594,39 +595,40 @@ class SagecomXmoApi:
     async def _async_optional_xpath(self, xpath: str) -> Any | None:
         try:
             return await self._client.get_value_by_xpath(xpath)
-        except (UnknownPathException, KeyError, TypeError):
+        except UnknownPathException:
             return None
 
     async def async_login(self) -> None:
         """Verify credentials against the router."""
-        logged_in = False
-        try:
-            await self._client.login()
-            logged_in = True
-            self._logged_in = True
-        except (
-            AccessRestrictionException,
-            AuthenticationException,
-            UnauthorizedException,
-        ) as err:
-            raise SagecomAuthError(str(err)) from err
-        except (
-            asyncio.TimeoutError,
-            ClientError,
-            ConnectionError,
-            LoginConnectionException,
-            LoginTimeoutException,
-            LoginRetryErrorException,
-            MaximumSessionCountException,
-            UnsupportedHostException,
-            InvalidSessionException,
-            BaseSagemcomException,
-        ) as err:
-            raise SagecomError(str(err)) from err
-        finally:
-            if logged_in:
-                with suppress(BaseSagemcomException):
-                    await self._client.logout()
+        async with self._lock:
+            logged_in = False
+            try:
+                await self._client.login()
+                logged_in = True
+                self._logged_in = True
+            except (
+                AccessRestrictionException,
+                AuthenticationException,
+                UnauthorizedException,
+            ) as err:
+                raise SagecomAuthError(str(err)) from err
+            except (
+                asyncio.TimeoutError,
+                ClientError,
+                ConnectionError,
+                LoginConnectionException,
+                LoginTimeoutException,
+                LoginRetryErrorException,
+                MaximumSessionCountException,
+                UnsupportedHostException,
+                InvalidSessionException,
+                BaseSagemcomException,
+            ) as err:
+                raise SagecomError(str(err)) from err
+            finally:
+                if logged_in:
+                    with suppress(BaseSagemcomException):
+                        await self._client.logout()
 
     async def async_get_device_info(self) -> dict[str, Any]:
         """Fetch device info for config flow validation."""
@@ -664,52 +666,86 @@ class SagecomXmoApi:
 
     async def async_get_data(self) -> dict[str, Any]:
         """Fetch all read-only data used by the integration."""
-        try:
-            await self._client.login()
+        async with self._lock:
             try:
-                info = await self._client.get_device_info()
-                hosts = await self._client.get_hosts(only_active=False)
-                device_raw = await self._async_optional_xpath("Device/DeviceInfo")
-                ip_interfaces = await self._async_optional_xpath("Device/IP/Interfaces")
-                eth_interfaces = await self._async_optional_xpath(
-                    "Device/Ethernet/Interfaces"
-                )
-                wifi = await self._async_optional_xpath("Device/WiFi")
-                optical_raw = await self._async_optional_xpath("Device/Optical")
-                led = await self._async_optional_xpath("Device/Managers/Led")
-                upnp = await self._async_optional_xpath("Device/UPnP/Device/UPnPIGD")
-            finally:
-                with suppress(BaseSagemcomException):
-                    await self._client.logout()
-        except (
-            AccessRestrictionException,
-            AuthenticationException,
-            UnauthorizedException,
-        ) as err:
-            raise SagecomAuthError(str(err)) from err
-        except (
-            asyncio.TimeoutError,
-            ClientError,
-            ConnectionError,
-            LoginConnectionException,
-            LoginTimeoutException,
-            LoginRetryErrorException,
-            MaximumSessionCountException,
-            UnsupportedHostException,
-            InvalidSessionException,
-            BaseSagemcomException,
-        ) as err:
-            raise SagecomError(str(err)) from err
+                await self._client.login()
+                try:
+                    device_raw = await self._async_optional_xpath("Device/DeviceInfo")
+                    info = None
+                    if not isinstance(device_raw, dict) or not isinstance(
+                        device_raw.get("device_info"), dict
+                    ):
+                        info = await self._client.get_device_info()
+                    hosts = await self._client.get_hosts(only_active=False)
+                    ip_interfaces = await self._async_optional_xpath(
+                        "Device/IP/Interfaces"
+                    )
+                    eth_interfaces = await self._async_optional_xpath(
+                        "Device/Ethernet/Interfaces"
+                    )
+                    wifi = await self._async_optional_xpath("Device/WiFi")
+                    optical_raw = await self._async_optional_xpath("Device/Optical")
+                    led = await self._async_optional_xpath("Device/Managers/Led")
+                    upnp = await self._async_optional_xpath(
+                        "Device/UPnP/Device/UPnPIGD"
+                    )
+                finally:
+                    with suppress(BaseSagemcomException):
+                        await self._client.logout()
+            except (
+                AccessRestrictionException,
+                AuthenticationException,
+                UnauthorizedException,
+            ) as err:
+                raise SagecomAuthError(str(err)) from err
+            except (
+                asyncio.TimeoutError,
+                ClientError,
+                ConnectionError,
+                LoginConnectionException,
+                LoginTimeoutException,
+                LoginRetryErrorException,
+                MaximumSessionCountException,
+                UnsupportedHostException,
+                InvalidSessionException,
+                BaseSagemcomException,
+                TypeError,
+                KeyError,
+            ) as err:
+                raise SagecomError(str(err)) from err
+
+        if device_raw is None and ip_interfaces is None and wifi is None:
+            raise SagecomError("Empty data response from router")
 
         self._logged_in = True
-        version = info.software_version or info.external_firmware_version
-        device_dict = {
-            "serialnumber": info.serial_number or info.mac_address,
-            "modelname": info.model_name or info.product_class,
-            "uptime": info.up_time,
-            "running": {"version": version},
-            "main": {"version": version},
-        }
+        dev_inner = (
+            device_raw.get("device_info")
+            if isinstance(device_raw, dict)
+            else None
+        )
+        if isinstance(dev_inner, dict):
+            version = dev_inner.get("software_version") or dev_inner.get(
+                "external_firmware_version"
+            )
+            device_dict = {
+                "serialnumber": dev_inner.get("serial_number")
+                or dev_inner.get("mac_address"),
+                "modelname": dev_inner.get("model_name")
+                or dev_inner.get("product_class"),
+                "uptime": _to_int(dev_inner.get("up_time")),
+                "running": {"version": version},
+                "main": {"version": version},
+            }
+        else:
+            assert info is not None
+            version = info.software_version or info.external_firmware_version
+            device_dict = {
+                "serialnumber": info.serial_number or info.mac_address,
+                "modelname": info.model_name or info.product_class,
+                "uptime": info.up_time,
+                "running": {"version": version},
+                "main": {"version": version},
+            }
 
         host_list = []
         for host in hosts:
@@ -1028,23 +1064,24 @@ class SagecomXmoApi:
         }
 
     async def _async_set_xpath(self, xpath: str, value: str) -> Any:
-        try:
-            await self._client.login()
+        async with self._lock:
             try:
-                return await self._client.set_value_by_xpath(xpath, value)
-            finally:
-                with suppress(BaseSagemcomException):
-                    await self._client.logout()
-        except UnknownPathException as err:
-            raise SagecomEndpointError(xpath) from err
-        except (
-            AccessRestrictionException,
-            AuthenticationException,
-            UnauthorizedException,
-        ) as err:
-            raise SagecomAuthError(str(err)) from err
-        except BaseSagemcomException as err:
-            raise SagecomError(str(err)) from err
+                await self._client.login()
+                try:
+                    return await self._client.set_value_by_xpath(xpath, value)
+                finally:
+                    with suppress(BaseSagemcomException):
+                        await self._client.logout()
+            except UnknownPathException as err:
+                raise SagecomEndpointError(xpath) from err
+            except (
+                AccessRestrictionException,
+                AuthenticationException,
+                UnauthorizedException,
+            ) as err:
+                raise SagecomAuthError(str(err)) from err
+            except BaseSagemcomException as err:
+                raise SagecomError(str(err)) from err
 
     async def async_set_wifi(self, band: str, enabled: bool) -> Any:
         xpaths = {
