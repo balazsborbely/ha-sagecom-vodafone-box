@@ -1,4 +1,4 @@
-"""Switches for Sagemcom Vodafone."""
+"""Switches for Sagemcom F@st CPE."""
 
 from __future__ import annotations
 

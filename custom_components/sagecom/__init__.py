@@ -1,4 +1,4 @@
-"""The Sagemcom Vodafone integration."""
+"""The Sagemcom F@st CPE integration."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ PLATFORMS = [
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Sagemcom Vodafone from a config entry."""
+    """Set up Sagemcom F@st CPE from a config entry."""
     api_type = entry.data.get(CONF_API_TYPE, API_TYPE_REST_V1)
     if api_type == API_TYPE_XMO:
         encryption_method = entry.data.get(CONF_ENCRYPTION_METHOD, "SHA512")
@@ -76,7 +76,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a Sagemcom Vodafone config entry."""
+    """Unload a Sagemcom F@st CPE config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         data = hass.data[DOMAIN].pop(entry.entry_id)

@@ -1,4 +1,4 @@
-"""Binary sensors for Sagemcom Vodafone."""
+"""Binary sensors for Sagemcom F@st CPE."""
 
 from __future__ import annotations
 

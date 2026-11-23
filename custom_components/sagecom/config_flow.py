@@ -1,4 +1,4 @@
-"""Config flow for Sagemcom Vodafone."""
+"""Config flow for Sagemcom F@st CPE."""
 
 from __future__ import annotations
 
