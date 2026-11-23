@@ -18,6 +18,7 @@ from homeassistant.const import (
     UnitOfElectricPotential,
     UnitOfInformation,
     UnitOfTemperature,
+    UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -33,7 +34,8 @@ SENSORS = (
         name="Uptime",
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement="s",
+        native_unit_of_measurement=UnitOfTime.DAYS,
+        suggested_display_precision=2,
         icon="mdi:timer-outline",
     ),
     SensorEntityDescription(
@@ -69,7 +71,8 @@ SENSORS = (
     SensorEntityDescription(
         key="wifi24_rx_bytes",
         name="Wi-Fi 2.4 GHz received",
-        native_unit_of_measurement=UnitOfInformation.BYTES,
+        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        suggested_display_precision=2,
         device_class=SensorDeviceClass.DATA_SIZE,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:wifi",
@@ -77,7 +80,8 @@ SENSORS = (
     SensorEntityDescription(
         key="wifi24_tx_bytes",
         name="Wi-Fi 2.4 GHz transmitted",
-        native_unit_of_measurement=UnitOfInformation.BYTES,
+        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        suggested_display_precision=2,
         device_class=SensorDeviceClass.DATA_SIZE,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:wifi-arrow-up",
@@ -85,7 +89,8 @@ SENSORS = (
     SensorEntityDescription(
         key="wifi5_rx_bytes",
         name="Wi-Fi 5 GHz received",
-        native_unit_of_measurement=UnitOfInformation.BYTES,
+        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        suggested_display_precision=2,
         device_class=SensorDeviceClass.DATA_SIZE,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:wifi",
@@ -93,7 +98,8 @@ SENSORS = (
     SensorEntityDescription(
         key="wifi5_tx_bytes",
         name="Wi-Fi 5 GHz transmitted",
-        native_unit_of_measurement=UnitOfInformation.BYTES,
+        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+        suggested_display_precision=2,
         device_class=SensorDeviceClass.DATA_SIZE,
         state_class=SensorStateClass.TOTAL_INCREASING,
         icon="mdi:wifi-arrow-up",
@@ -127,6 +133,15 @@ def _average(values: list[Any]) -> float | None:
     return sum(numeric) / len(numeric) if numeric else None
 
 
+def _to_mb(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return round(float(value) / 1_000_000, 2)
+    except (TypeError, ValueError):
+        return None
+
+
 class SagecomSensor(SagecomEntity, SensorEntity):
     """A Sagemcom router sensor."""
 
@@ -154,7 +169,13 @@ class SagecomSensor(SagecomEntity, SensorEntity):
 
         key = self.entity_description.key
         if key == "uptime":
-            return device_payload.get("uptime")
+            uptime = device_payload.get("uptime")
+            if uptime is None:
+                return None
+            try:
+                return round(float(uptime) / 86400, 2)
+            except (TypeError, ValueError):
+                return None
         if key == "firmware":
             return (
                 device_payload.get("running", {}).get("version")
@@ -186,14 +207,18 @@ class SagecomSensor(SagecomEntity, SensorEntity):
                 wireless = _payload(data, f"wireless{band}_stats")
                 direction = "rx" if key.endswith("rx_bytes") else "tx"
                 try:
-                    return wireless[0]["wireless"]["ssid"]["stats"][direction]["bytes"]
+                    return _to_mb(
+                        wireless[0]["wireless"]["ssid"]["stats"][direction]["bytes"]
+                    )
                 except (KeyError, IndexError, TypeError):
                     return None
         if key in ("wan_rx_bytes", "wan_tx_bytes"):
             wan_stats = _payload(data, "wan_stats")
             if not isinstance(wan_stats, dict):
                 return None
-            return wan_stats.get("rx_bytes" if key == "wan_rx_bytes" else "tx_bytes")
+            return _to_mb(
+                wan_stats.get("rx_bytes" if key == "wan_rx_bytes" else "tx_bytes")
+            )
         if key in (
             "wan_daily_rx_bytes",
             "wan_daily_tx_bytes",
@@ -209,12 +234,14 @@ class SagecomSensor(SagecomEntity, SensorEntity):
                 "wan_quarter_hour_rx_bytes": "quarter_hour_rx_bytes",
                 "wan_quarter_hour_tx_bytes": "quarter_hour_tx_bytes",
             }
-            return wan_stats.get(field_map[key])
+            return _to_mb(wan_stats.get(field_map[key]))
         if key in ("lan_rx_bytes", "lan_tx_bytes"):
             lan_stats = _payload(data, "lan_stats")
             if not isinstance(lan_stats, dict):
                 return None
-            return lan_stats.get("rx_bytes" if key == "lan_rx_bytes" else "tx_bytes")
+            return _to_mb(
+                lan_stats.get("rx_bytes" if key == "lan_rx_bytes" else "tx_bytes")
+            )
         if key in (
             "memory_usage_pct",
             "memory_free_kb",
@@ -277,7 +304,10 @@ class SagecomSensor(SagecomEntity, SensorEntity):
                 if key.endswith(suffix):
                     port_key = key[4 : -len(suffix)]
                     port = eth_ports.get(port_key)
-                    return port.get(field) if isinstance(port, dict) else None
+                    if not isinstance(port, dict):
+                        return None
+                    val = port.get(field)
+                    return val if suffix == "_speed" else _to_mb(val)
         if key in ("upstream_power", "downstream_power", "downstream_snr"):
             docsis = _payload(data, "docsis_connection")
             if not docsis:
@@ -354,7 +384,8 @@ async def async_setup_entry(
         SensorEntityDescription(
             key="wan_rx_bytes",
             name="WAN received",
-            native_unit_of_measurement=UnitOfInformation.BYTES,
+            native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+            suggested_display_precision=2,
             device_class=SensorDeviceClass.DATA_SIZE,
             state_class=SensorStateClass.TOTAL_INCREASING,
             icon="mdi:download-network",
@@ -362,7 +393,8 @@ async def async_setup_entry(
         SensorEntityDescription(
             key="wan_tx_bytes",
             name="WAN transmitted",
-            native_unit_of_measurement=UnitOfInformation.BYTES,
+            native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+            suggested_display_precision=2,
             device_class=SensorDeviceClass.DATA_SIZE,
             state_class=SensorStateClass.TOTAL_INCREASING,
             icon="mdi:upload-network",
@@ -370,7 +402,8 @@ async def async_setup_entry(
         SensorEntityDescription(
             key="wan_daily_rx_bytes",
             name="WAN daily received",
-            native_unit_of_measurement=UnitOfInformation.BYTES,
+            native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+            suggested_display_precision=2,
             device_class=SensorDeviceClass.DATA_SIZE,
             state_class=SensorStateClass.TOTAL_INCREASING,
             icon="mdi:download-network",
@@ -378,7 +411,8 @@ async def async_setup_entry(
         SensorEntityDescription(
             key="wan_daily_tx_bytes",
             name="WAN daily transmitted",
-            native_unit_of_measurement=UnitOfInformation.BYTES,
+            native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+            suggested_display_precision=2,
             device_class=SensorDeviceClass.DATA_SIZE,
             state_class=SensorStateClass.TOTAL_INCREASING,
             icon="mdi:upload-network",
@@ -386,7 +420,8 @@ async def async_setup_entry(
         SensorEntityDescription(
             key="wan_quarter_hour_rx_bytes",
             name="WAN 15m received",
-            native_unit_of_measurement=UnitOfInformation.BYTES,
+            native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+            suggested_display_precision=2,
             device_class=SensorDeviceClass.DATA_SIZE,
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:download-network",
@@ -394,7 +429,8 @@ async def async_setup_entry(
         SensorEntityDescription(
             key="wan_quarter_hour_tx_bytes",
             name="WAN 15m transmitted",
-            native_unit_of_measurement=UnitOfInformation.BYTES,
+            native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+            suggested_display_precision=2,
             device_class=SensorDeviceClass.DATA_SIZE,
             state_class=SensorStateClass.MEASUREMENT,
             icon="mdi:upload-network",
@@ -402,7 +438,8 @@ async def async_setup_entry(
         SensorEntityDescription(
             key="lan_rx_bytes",
             name="LAN received",
-            native_unit_of_measurement=UnitOfInformation.BYTES,
+            native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+            suggested_display_precision=2,
             device_class=SensorDeviceClass.DATA_SIZE,
             state_class=SensorStateClass.TOTAL_INCREASING,
             icon="mdi:lan",
@@ -410,7 +447,8 @@ async def async_setup_entry(
         SensorEntityDescription(
             key="lan_tx_bytes",
             name="LAN transmitted",
-            native_unit_of_measurement=UnitOfInformation.BYTES,
+            native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+            suggested_display_precision=2,
             device_class=SensorDeviceClass.DATA_SIZE,
             state_class=SensorStateClass.TOTAL_INCREASING,
             icon="mdi:lan",
@@ -575,7 +613,8 @@ async def async_setup_entry(
                     SensorEntityDescription(
                         key=f"eth_{port_key}_rx_bytes",
                         name=f"Ethernet {alias} received",
-                        native_unit_of_measurement=UnitOfInformation.BYTES,
+                        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+                        suggested_display_precision=2,
                         device_class=SensorDeviceClass.DATA_SIZE,
                         state_class=SensorStateClass.TOTAL_INCREASING,
                         icon="mdi:ethernet",
@@ -583,7 +622,8 @@ async def async_setup_entry(
                     SensorEntityDescription(
                         key=f"eth_{port_key}_tx_bytes",
                         name=f"Ethernet {alias} transmitted",
-                        native_unit_of_measurement=UnitOfInformation.BYTES,
+                        native_unit_of_measurement=UnitOfInformation.MEGABYTES,
+                        suggested_display_precision=2,
                         device_class=SensorDeviceClass.DATA_SIZE,
                         state_class=SensorStateClass.TOTAL_INCREASING,
                         icon="mdi:ethernet",
